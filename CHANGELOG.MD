@@ -1,5 +1,11 @@
 ﻿# CHANGELOG
 
+## [1.19.1.1](https://github.com/daviesj/PSScriptAnalyzer/tree/047ae5e80fbae761d76c500364bc684faca48666) - 2020-08-12
+
+### Fixes
+
+- Added IgnoreAssignmentOperatorInsideHashTable option to the UseConsistentWhitespace rule that would make it compatible with the AlignAssignmentStatement rule.
+
 ## [1.19.1](https://github.com/PowerShell/PSScriptAnalyzer/tree/1.19.1) - 2020-07-28
 
 ### Fixes
