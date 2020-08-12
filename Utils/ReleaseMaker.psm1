@@ -81,7 +81,7 @@ function Get-VersionsFromChangeLog
 {
     $moduleManifestPath = Get-ModuleManifestPath
     $changelogPath = Get-ChangeLogPath
-    $matches = [regex]::new("\[(\d+\.\d+\.\d+)\]").Matches((get-content $changelogPath -raw))
+    $matches = [regex]::new("\[(\d+\.\d+\.\d+(\.\d+)?)\]").Matches((get-content $changelogPath -raw))
     $versions = $matches | ForEach-Object {$_.Groups[1].Value}
     $versions
 }
