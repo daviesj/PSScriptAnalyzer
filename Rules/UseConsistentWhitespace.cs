@@ -502,6 +502,12 @@ namespace Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules
             return IsPreviousTokenOnSameLine(tokenNode) && IsPreviousTokenApartByWhitespace(tokenNode);
         }
 
+        private bool IsPreviousTokenAdjacent(LinkedListNode<Token> tokenNode)
+        {
+            return tokenNode.Value.Extent.StartLineNumber == tokenNode.Previous.Value.Extent.EndLineNumber
+                   && tokenNode.Value.Extent.StartColumnNumber == tokenNode.Previous.Value.Extent.EndColumnNumber;
+        }
+
         private IEnumerable<DiagnosticRecord> FindOperatorViolations(TokenOperations tokenOperations)
         {
             foreach (LinkedListNode<Token> tokenNode in tokenOperations.GetTokenNodes((t)=>true))
@@ -575,29 +581,36 @@ namespace Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules
                     continue;
                 }
 
-                if (!operatorIsPrefixOrPostfix)
+                bool leftSideOK;
+                bool rightSideOK;
+                if (operatorIsPrefixOrPostfix)
                 {
-                    bool leftSideOK = !checkLeftSide || IsPreviousTokenOnSameLineAndApartByWhitespace(tokenNode);
+                    leftSideOK = !checkLeftSide || IsPreviousTokenAdjacent(tokenNode);
+                    rightSideOK = !checkRightSide || IsPreviousTokenAdjacent(tokenNode.Next);
+                }
+                else
+                {
+                    leftSideOK = !checkLeftSide || IsPreviousTokenOnSameLineAndApartByWhitespace(tokenNode);
 
-                    bool rightSideOK = !checkRightSide || tokenNode.Next.Value.Kind == TokenKind.NewLine
-                                    || IsPreviousTokenOnSameLineAndApartByWhitespace(tokenNode.Next);
-
-                    if (!leftSideOK || !rightSideOK)
-                    {
-                        yield return new DiagnosticRecord(
-                            GetError(ErrorKind.Operator),
-                            tokenNode.Value.Extent,
-                            GetName(),
-                            GetDiagnosticSeverity(),
-                            tokenOperations.Ast.Extent.File,
-                            null,
-                            GetCorrections(
-                                tokenNode.Previous?.Value,
-                                tokenNode.Value,
-                                tokenNode.Next?.Value,
-                                leftSideOK,
-                                rightSideOK));
-                    }
+                    rightSideOK = !checkRightSide || tokenNode.Next.Value.Kind == TokenKind.NewLine
+                                  || IsPreviousTokenOnSameLineAndApartByWhitespace(tokenNode.Next);
+                }
+                if (!leftSideOK || !rightSideOK)
+                {
+                    yield return new DiagnosticRecord(
+                        GetError(ErrorKind.Operator),
+                        tokenNode.Value.Extent,
+                        GetName(),
+                        GetDiagnosticSeverity(),
+                        tokenOperations.Ast.Extent.File,
+                        null,
+                        GetCorrections(
+                            tokenNode.Previous?.Value,
+                            tokenNode.Value,
+                            tokenNode.Next?.Value,
+                            leftSideOK,
+                            rightSideOK,
+                            !operatorIsPrefixOrPostfix));
                 }
             }
         }
@@ -607,28 +620,35 @@ namespace Microsoft.Windows.PowerShell.ScriptAnalyzer.BuiltinRules
             Token prevToken,
             Token token,
             Token nextToken,
-            bool hasWhitespaceBefore, // if this is false, then the returned correction extent will add a whitespace before the token
-            bool hasWhitespaceAfter   // if this is false, then the returned correction extent will add a whitespace after the token
+            bool leftSideOK,  // if this is false, then the returned correction extent will add a whitespace before the token
+            bool rightSideOK, // if this is false, then the returned correction extent will add a whitespace after the token
+            bool shouldHaveWhitespace = true // if this is false, then the returned correction extent will remove whitespace instead of adding it
             )
         {
             var sb = new StringBuilder();
             IScriptExtent e1 = token.Extent;
-            if (!hasWhitespaceBefore)
+            if (!leftSideOK)
             {
-                sb.Append(whiteSpace);
+                if (shouldHaveWhitespace)
+                {
+                    sb.Append(whiteSpace);
+                }
                 e1 = prevToken.Extent;
             }
 
             var e2 = token.Extent;
-            if (!hasWhitespaceAfter)
+            if (!rightSideOK)
             {
-                if (!hasWhitespaceBefore)
+                if (!leftSideOK)
                 {
                     sb.Append(token.Text);
                 }
 
                 e2 = nextToken.Extent;
-                sb.Append(whiteSpace);
+                if (shouldHaveWhitespace)
+                {
+                    sb.Append(whiteSpace);
+                }
             }
 
             var extent = new ScriptExtent(

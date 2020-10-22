@@ -311,19 +311,28 @@ $x = $true -and
             Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings | Should -Be $null
         }
 
-        It "Should not find a violation if there is no space around prefix operator" {
-            $def = '--$counter'
-            Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings | Should -Be $null
+        It "Should find a violation if there is whitespace around postfix operator" {
+            $def = '$var ++'
+            $violations = Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings
+            Test-CorrectionExtentFromContent $def $violations 1 ' ' ''
         }
 
-        It "Should not find a violation if there is no space around postfix operator" {
-            $def = '$counter++'
-            Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings | Should -Be $null
+        It "Should find a violation if there is whitespace around prefix operator" {
+            $def = '-- $var'
+            $violations = Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings
+            Test-CorrectionExtentFromContent $def $violations 1 ' ' ''
         }
 
-        It "Should not find a violation if there is no space around exclaim operator" {
-            $def = 'if(!$true){ "FALSE!@!!!!" }'
-            Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings | Should -Be $null
+        It "Should find a violation if there is whitespace around unary minus operator" {
+            $def = '- 3'
+            $violations = Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings
+            Test-CorrectionExtentFromContent $def $violations 1 ' ' ''
+        }
+
+        It "Should find a violation if there is whitespace around unary exclaim operator" {
+            $def = '! $possible'
+            $violations = Invoke-ScriptAnalyzer -ScriptDefinition $def -Settings $settings
+            Test-CorrectionExtentFromContent $def $violations 1 ' ' ''
         }
     }
 
